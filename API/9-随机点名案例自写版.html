@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+        }
+
+        h2 {
+            text-align: center;
+        }
+
+        .box {
+            width: 600px;
+            margin: 50px auto;
+            display: flex;
+            font-size: 25px;
+            line-height: 40px;
+        }
+
+        .qs {
+
+            width: 450px;
+            height: 40px;
+            color: red;
+
+        }
+
+        .btns {
+            text-align: center;
+        }
+
+        .btns button {
+            width: 120px;
+            height: 35px;
+            margin: 0 50px;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>随机点名</h2>
+    <div class="box">
+        <span>名字是：</span>
+        <div class="qs">请开始抽取</div>
+    </div>
+    <div class="btns">
+        <button class="start">开始</button>
+        <button class="end">结束</button>
+    </div>
+
+    <script>
+        // 数据数组
+        const arr = ['李佳霖', '李昕越', '彭于晏', '刘德华', '吴彦祖', '张学友', '郭富城', '黎明']
+        let timerId = 0  // 定时器的全局变量
+        // 什么要变就获取什么
+        const qs = document.querySelector('.qs')
+        const startBtn = document.querySelector('.start')
+        // 点击开始按钮，页面姓名就要随机变化，需要设置随机数
+        //绑定click事件，点击开始按钮，这些才开始变换,cliclk之后才开始设置定时器
+        startBtn.addEventListener('click', function () {
+            timerId = setInterval(function () {
+                startBtn.disabled = true//这一步是为了防止多次点击开始按钮，导致定时器叠加
+                const random = parseInt(Math.random() * arr.length)
+                qs.innerHTML = arr[random]
+            }, 40)   //qs要发生变化，双标签，故innerHTML
+        })
+        // 点击结束按钮，页面姓名停止变化，需要清除定时器
+        const endBtn = document.querySelector('.end')
+        //当我们点击一个东西，要发生什么变化的时候，就需要用到监听器
+        endBtn.addEventListener('click', function () {
+            clearInterval(timerId)
+            startBtn.disabled = false
+        })
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>战斗模拟器</title>
+    <style>
+        /* --- 基础布局 --- */
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #2c3e50;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .battle-field {
+            display: flex;
+            justify-content: space-between;
+            width: 80%;
+            max-width: 800px;
+            margin-top: 50px;
+            padding: 30px;
+            background: #34495e;
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        /* --- 角色卡片区域 --- */
+        .character {
+            text-align: center;
+            position: relative;
+            /* 为了让飘字动画以它为基准定位 */
+            width: 200px;
+        }
+
+        .avatar {
+            width: 150px;
+            height: 150px;
+            /* 删掉 background-size */
+            border-radius: 10px;
+            border: 4px solid #95a5a6;
+            margin: 0 auto 20px;
+            transition: transform 0.1s;
+
+            /* --- 新增：让 Emoji 居中显示 --- */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 80px;
+            /* 表情大一点 */
+            background-color: #ecf0f1;
+            /* 给个底色 */
+        }
+
+        /* 原来的 background-image url(...) 全部删掉，只保留边框颜色 */
+        #hero .avatar {
+            border-color: #f1c40f;
+        }
+
+        #monster .avatar {
+            border-color: #e74c3c;
+        }
+
+        #hero .avatar {
+            background-image: url('https://i.imgur.com/Rb7zE0c.png');
+            /* 勇者图 */
+            border-color: #f1c40f;
+        }
+
+        #monster .avatar {
+            background-image: url('https://i.imgur.com/8Q5x2B4.png');
+            /* 恶龙图 */
+            border-color: #e74c3c;
+        }
+
+        h2 {
+            margin: 10px 0;
+        }
+
+        /* --- 核心动画1：丝滑血条 (CSS Transition) --- */
+        .health-bar-container {
+            width: 100%;
+            height: 20px;
+            background: #7f8c8d;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 10px;
+            border: 2px solid #2c3e50;
+        }
+
+        .health-bar-fill {
+            height: 100%;
+            background: #2ecc71;
+            /* 绿色健康血条 */
+            width: 100%;
+            /* 初始满血 */
+            /* 【重点】宽度变化时，用0.5秒平滑过渡 */
+            transition: width 0.5s ease-in-out, background-color 0.5s;
+        }
+
+        /* 血量低时的样式 */
+        .health-bar-fill.low {
+            background: #e74c3c;
+        }
+
+        .health-bar-fill.medium {
+            background: #f1c40f;
+        }
+
+
+        /* --- 核心动画2：受击抖动 (JS控制类名) --- */
+        /* 定义一个抖动的动画关键帧 */
+        @keyframes shake {
+            0% {
+                transform: translate(0, 0);
+            }
+
+            25% {
+                transform: translate(-10px, 0);
+            }
+
+            50% {
+                transform: translate(10px, 0);
+            }
+
+            75% {
+                transform: translate(-10px, 0);
+            }
+
+            100% {
+                transform: translate(0, 0);
+            }
+        }
+
+        /* 当 JS 加上这个类名时，触发抖动 */
+        .is-hit {
+            animation: shake 0.5s;
+            filter: brightness(1.5) sepia(1) hue-rotate(-50deg) saturate(5);
+            /* 受击闪烁变红 */
+        }
+
+        /* --- 核心动画3：飘字特效 (关键帧动画) --- */
+        /* 定义文字向上飘并消失的动画 */
+        @keyframes floatUp {
+            0% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+
+            100% {
+                opacity: 0;
+                transform: translateY(-50px) scale(1.5);
+            }
+        }
+
+        /* 飘字的通用样式 */
+        .floating-text {
+            position: absolute;
+            top: 50%;
+            /* 从角色中间出现 */
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 32px;
+            font-weight: bold;
+            pointer-events: none;
+            /* 防止鼠标点到文字 */
+            /* 应用上面的 floatUp 动画，持续0.8秒 */
+            animation: floatUp 0.8s ease-out forwards;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .dmg-text {
+            color: #e74c3c;
+        }
+
+        /* 伤害是红色 */
+        .heal-text {
+            color: #2ecc71;
+        }
+
+        /* 回血是绿色 */
+
+
+        /* --- 控制按钮 --- */
+        .controls {
+            margin-top: 40px;
+            display: flex;
+            gap: 20px;
+        }
+
+        button {
+            padding: 15px 40px;
+            font-size: 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        #atk-btn {
+            background: #e74c3c;
+            color: white;
+            box-shadow: 0 5px #c0392b;
+        }
+
+        #atk-btn:active {
+            transform: translateY(5px);
+            box-shadow: 0 0 #c0392b;
+        }
+
+        #heal-btn {
+            background: #2ecc71;
+            color: white;
+            box-shadow: 0 5px #27ae60;
+        }
+
+        #heal-btn:active {
+            transform: translateY(5px);
+            box-shadow: 0 0 #27ae60;
+        }
+
+        /* 游戏结束遮罩 */
+        #game-over {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            color: gold;
+            display: none;
+            /* 默认隐藏 */
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #game-over h1 {
+            font-size: 60px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="battle-field">
+        <div class="character" id="hero">
+            <div class="avatar">🦸‍♂️</div>
+            <h2>勇者 (你)</h2>
+            <div class="health-bar-container">
+                <div class="health-bar-fill" id="hero-hp-bar"></div>
+            </div>
+            <p id="hero-hp-text">100 / 100</p>
+        </div>
+
+        <div class="character" id="monster">
+            <div class="avatar">🐉</div>
+            <h2>恶龙 (敌人)</h2>
+            <div class="health-bar-container">
+                <div class="health-bar-fill" id="monster-hp-bar"></div>
+            </div>
+            <p id="monster-hp-text">200 / 200</p>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button id="atk-btn">⚔️ 攻击!</button>
+        <button id="heal-btn">🌿 回血!</button>
+    </div>
+
+    <div id="game-over">
+        <h1 id="winner-text"></h1>
+        <button onclick="location.reload()">重新开始</button>
+    </div>
+
+    <script>
+        // ===========================
+        // 1. 数据层 (Model) - 游戏的内核
+        // ===========================
+        // 我们用两个对象来代表勇者和怪物，只存数据
+        const hero = {
+            elementId: 'hero', // 对应的HTML ID，方便找它
+            maxHp: 100,
+            currentHp: 100,
+            attackRange: [15, 25] // 攻击力在 15~25 之间浮动
+        };
+
+        const monster = {
+            elementId: 'monster',
+            maxHp: 200,
+            currentHp: 200,
+            attackRange: [10, 20]
+        };
+
+
+        // ===========================
+        // 2. 视图层 (View) - 负责更新界面和动画
+        // ===========================
+
+        // 功能A：更新血条界面
+        // 传入一个角色对象，自动根据它的 currentHp 更新它的页面显示
+        function updateUI(character) {
+            const bar = document.getElementById(`${character.elementId}-hp-bar`);
+            const text = document.getElementById(`${character.elementId}-hp-text`);
+
+            // 计算血量百分比
+            const percentage = (character.currentHp / character.maxHp) * 100;
+
+            // 更新文字
+            text.innerText = `${character.currentHp} / ${character.maxHp}`;
+
+            // --- 动画核心1：更新血条宽度 ---
+            // 我们只需要改变宽度百分比，CSS里的 transition 会自动让它丝滑过渡
+            bar.style.width = `${percentage}%`;
+
+            // 根据血量改变颜色
+            bar.classList.remove('low', 'medium');
+            if (percentage < 30) bar.classList.add('low');
+            else if (percentage < 60) bar.classList.add('medium');
+        }
+
+        // 功能B：播放受击动画 (抖动+闪烁)
+        function playHitAnimation(character) {
+            // 找到角色的头像容器
+            const avatarDiv = document.querySelector(`#${character.elementId} .avatar`);
+            // 添加抖动类名
+            avatarDiv.classList.add('is-hit');
+            // --- 动画核心2：定时移除类名 ---
+            // 动画播放了0.5秒，所以500ms后我们要把这个类名删掉，
+            // 否则下次挨打它身上还有这个类名，就不会再抖了
+            setTimeout(() => {
+                avatarDiv.classList.remove('is-hit');
+            }, 500);
+        }
+
+        // 功能C：播放飘字动画 (最复杂的动画)
+        // 我们需要凭空创造一个 <span> 扔到页面上，等它飘完了再把它销毁
+        function showFloatingText(character, amount, type) {
+            const charDiv = document.getElementById(character.elementId);
+
+            // 1. 创建新元素
+            const span = document.createElement('span');
+            span.innerText = type === 'dmg' ? `-${amount}` : `+${amount}`;
+            // 添加基础类名和类型类名(决定颜色)
+            span.classList.add('floating-text', type === 'dmg' ? 'dmg-text' : 'heal-text');
+
+            // 2. 把它扔到角色的框框里
+            charDiv.appendChild(span);
+
+            // --- 动画核心3：用完即弃 ---
+            // CSS里动画设置了0.8秒播放完。
+            // 播放完后，这个标签就没用了，必须把它从 DOM 里删掉，防止垃圾堆积。
+            setTimeout(() => {
+                span.remove();
+            }, 800);
+        }
+
+        // ===========================
+        // 3. 逻辑控制层 (Controller)
+        // ===========================
+
+        const atkBtn = document.getElementById('atk-btn');
+        const healBtn = document.getElementById('heal-btn');
+
+        // 工具：生成随机数
+        function getRandom(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        // 核心战斗逻辑：A 攻击 B
+        function performAttack(attacker, defender) {
+            // 1. 计算伤害 (纯数据)
+            const dmg = getRandom(attacker.attackRange[0], attacker.attackRange[1]);
+            defender.currentHp -= dmg;
+            if (defender.currentHp < 0) defender.currentHp = 0; // 防止血量变负数
+
+            // 2. 触发动画 (视觉)
+            playHitAnimation(defender); // 挨打的人抖一下
+            showFloatingText(defender, dmg, 'dmg'); // 挨打的人头上冒红字
+
+            // 3. 更新界面 (视觉)
+            updateUI(defender);
+
+            // 4. 检查是否结束
+            checkGameOver();
+        }
+
+        // 玩家点击攻击按钮
+        atkBtn.addEventListener('click', () => {
+            // 1. 禁用按钮，防止玩家在动画播放时狂点
+            toggleButtons(true);
+
+            // 2. 勇者攻击怪物
+            performAttack(hero, monster);
+
+            // 3. 如果游戏没结束，1秒后怪物反击 (模拟回合制)
+            if (monster.currentHp > 0) {
+                setTimeout(() => {
+                    performAttack(monster, hero);
+                    // 怪物打完，恢复按钮
+                    if (hero.currentHp > 0) toggleButtons(false);
+                }, 1000);
+            }
+        });
+
+        // 玩家点击回血按钮
+        healBtn.addEventListener('click', () => {
+            toggleButtons(true);
+            // 1. 计算回血
+            const healAmount = getRandom(20, 40);
+            hero.currentHp += healAmount;
+            if (hero.currentHp > hero.maxHp) hero.currentHp = hero.maxHp; // 不能超过上限
+
+            // 2. 触发动画
+            showFloatingText(hero, healAmount, 'heal'); // 勇者头上冒绿字
+            updateUI(hero);
+
+            // 3. 回合结束，怪物依然要打你
+            setTimeout(() => {
+                performAttack(monster, hero);
+                if (hero.currentHp > 0) toggleButtons(false);
+            }, 1000);
+        });
+
+        // 检查游戏结束
+        function checkGameOver() {
+            if (monster.currentHp <= 0) {
+                endGame("勇者胜利！恶龙被讨伐了！");
+            } else if (hero.currentHp <= 0) {
+                endGame("勇者倒下了...胜败乃兵家常事。");
+            }
+        }
+
+        function endGame(text) {
+            document.getElementById('winner-text').innerText = text;
+            document.getElementById('game-over').style.display = 'flex';
+            toggleButtons(true); // 禁用所有按钮
+        }
+
+        function toggleButtons(disabled) {
+            atkBtn.disabled = disabled;
+            healBtn.disabled = disabled;
+        }
+
+        // --- 游戏初始化 ---
+        // 一上来先根据初始数据把界面渲染好
+        updateUI(hero);
+        updateUI(monster);
+
+    </script>
+</body>
+
+</html>

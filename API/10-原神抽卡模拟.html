@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>原神抽卡逻辑模拟器</title>
+    <style>
+        :root {
+            --bg-color: #1e222e;
+            --text-color: #ece5d8;
+            --gold-color: #ffb13f;
+            --purple-color: #d088ff;
+            --blue-color: #5289ff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+        }
+
+        h2 span {
+            color: var(--gold-color);
+        }
+
+        /* 控制面板样式 */
+        .dashboard {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px 25px;
+            border-radius: 12px;
+            border: 1px solid #3b4254;
+            margin-bottom: 20px;
+            width: 100%;
+            max-width: 600px;
+        }
+
+        .stats-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .stat-item span {
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .guarantee-status.on {
+            color: var(--gold-color);
+            font-weight: bold;
+        }
+
+        .guarantee-status.off {
+            color: #888;
+        }
+
+        /* 按钮操作区 */
+        .actions {
+            gap: 20px;
+            display: flex;
+            margin-bottom: 30px;
+        }
+
+        button {
+            padding: 12px 30px;
+            font-size: 16px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+            background: #ece5d8;
+            color: #1e222e;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .btn-ten {
+            background: var(--gold-color);
+            color: #4a2f00;
+        }
+
+        /* 结果展示区 */
+        .results-container {
+            display: grid;
+            /* 这里使用了网格布局，一行5个，共两行，看起来更像游戏 */
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
+            width: 100%;
+            max-width: 800px;
+            /* 如果你非要竖着排列，把上面两行注释掉，解开下面这一行的注释 */
+            /* display: flex; flex-direction: column; gap: 10px; width: 300px; */
+        }
+
+        /* 卡片样式 */
+        .card {
+            background: #2a2f42;
+            aspect-ratio: 3 / 4;
+            /* 保持卡片比例 */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            animation: popIn 0.3s ease-out;
+        }
+
+        .card-name {
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        .card-type {
+            font-size: 12px;
+            opacity: 0.7;
+        }
+
+        /* 不同稀有度的特效 */
+        .card.blue {
+            border-bottom: 4px solid var(--blue-color);
+        }
+
+        .card.purple {
+            border-bottom: 4px solid var(--purple-color);
+            box-shadow: 0 0 15px rgba(208, 136, 255, 0.3) inset;
+        }
+
+        .card.gold {
+            border-bottom: 4px solid var(--gold-color);
+            background: linear-gradient(135deg, #2a2f42 0%, #4a3c2a 100%);
+            box-shadow: 0 0 20px rgba(255, 177, 63, 0.6) inset, 0 0 10px var(--gold-color);
+            animation: popInGold 0.5s ease-out;
+        }
+
+        /* 金光闪烁动画 */
+        @keyframes popIn {
+            from {
+                transform: scale(0.8);
+                opacity: 0;
+            }
+
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        @keyframes popInGold {
+            0% {
+                transform: scale(0.5);
+                filter: brightness(2);
+            }
+
+            100% {
+                transform: scale(1);
+                filter: brightness(1);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>祈愿模拟器</h1>
+    <h2>本期UP：<span>雷电将军</span></h2>
+
+    <div class="dashboard">
+        <div class="stats-row">
+            <div class="stat-item">总抽数: <span id="total-pulls">0</span></div>
+            <div class="stat-item" style="color: var(--gold-color)">距离五星保底: <span id="pity-5">80</span></div>
+            <div class="stat-item" style="color: var(--purple-color)">距离四星保底: <span id="pity-4">10</span></div>
+        </div>
+        <div class="stats-row">
+            <div>大保底状态: <span id="guarantee-status" class="guarantee-status off">关闭 (下次出金50%歪)</span></div>
+        </div>
+    </div>
+
+    <div class="actions">
+        <button id="btn-1">祈愿 1 次</button>
+        <button id="btn-10" class="btn-ten">祈愿 10 次</button>
+    </div>
+
+    <div class="results-container" id="results"></div>
+
+    <script>
+        // ===========================
+        // 1. 全局状态管理 (记账本)
+        // ===========================
+        const state = {
+            totalPulls: 0,      // 总抽数
+            pityCounter4: 0,    // 已垫的四星抽数
+            pityCounter5: 0,    // 已垫的五星抽数
+            isGuaranteed: false // 大保底开关 (true表示下次必中UP)
+        };
+
+        const config = {
+            rate5: 0.006, // 0.6% 出金率
+            rate4: 0.051, // 5.1% 出紫率
+            hardPity5: 80, // 80发五星硬保底
+            hardPity4: 10, // 10发四星硬保底
+            currentUpName: "雷电将军",
+            standard5Stars: ["七七", "迪卢克", "刻晴", "莫娜", "琴"],
+            pool4Stars: ["班尼特", "行秋", "香菱", "菲谢尔"],
+            pool3Stars: ["以理服人", "沐浴龙血的剑", "弹弓", "神射手之誓"]
+        };
+
+        // ===========================
+        // 2. 核心逻辑: 单次抽卡
+        // ===========================
+        function drawOne() {
+            // 记账：垫刀数+1
+            state.totalPulls++;
+            state.pityCounter4++;
+            state.pityCounter5++;
+
+            const roll = Math.random(); // 生成一个 0~1 的随机数
+
+            // --- 优先级 1: 判断五星 ---
+            // 条件：达到80抽保底 OR 随机数撞大运小于0.006
+            if (state.pityCounter5 >= config.hardPity5 || roll < config.rate5) {
+                return handle5Star();
+            }
+
+            // --- 优先级 2: 判断四星 ---
+            // 条件：达到10抽保底 OR 随机数小于0.051
+            if (state.pityCounter4 >= config.hardPity4 || roll < config.rate4) {
+                return handle4Star();
+            }
+
+            // --- 优先级 3: 三星武器 ---
+            return handle3Star();
+        }
+
+        // 处理五星逻辑 (含大小保底判断)
+        function handle5Star() {
+            // 重要：出金后，四星和五星的计数器都要清零
+            state.pityCounter5 = 0;
+            state.pityCounter4 = 0;
+
+            let resultName = "";
+            let isUp = false;
+
+            // 判断是小保底还是大保底
+            if (state.isGuaranteed) {
+                // 大保底生效！
+                resultName = config.currentUpName;
+                isUp = true;
+                state.isGuaranteed = false; // 用掉了，重置为小保底状态
+                console.log("【大保底生效】");
+            } else {
+                // 小保底，50/50 赌运气
+                if (Math.random() < 0.5) {
+                    // 赌赢了
+                    resultName = config.currentUpName;
+                    isUp = true;
+                    console.log("【小保底不歪】");
+                } else {
+                    // 歪了
+                    resultName = getRandomItem(config.standard5Stars);
+                    isUp = false;
+                    state.isGuaranteed = true; // 【关键】开启大保底开关
+                    console.log("【歪了！下次必中】");
+                }
+            }
+
+            return { rarity: 'gold', type: '5星角色', name: resultName, isUp: isUp };
+        }
+
+        // 处理四星逻辑
+        function handle4Star() {
+            state.pityCounter4 = 0; // 清零四星计数
+            return { rarity: 'purple', type: '4星角色', name: getRandomItem(config.pool4Stars) };
+        }
+
+        // 处理三星逻辑
+        function handle3Star() {
+            // 三星不重置任何计数器
+            return { rarity: 'blue', type: '3星武器', name: getRandomItem(config.pool3Stars) };
+        }
+
+        // 工具函数：从数组随机取一个
+        function getRandomItem(arr) {
+            return arr[Math.floor(Math.random() * arr.length)];
+        }
+
+
+        // ===========================
+        // 3. UI 渲染与交互
+        // ===========================
+        const resultsContainer = document.getElementById('results');
+        const btn1 = document.getElementById('btn-1');
+        const btn10 = document.getElementById('btn-10');
+
+        // 更新控制面板显示
+        function updateDashboard() {
+            document.getElementById('total-pulls').innerText = state.totalPulls;
+            // 显示剩余多少发保底
+            document.getElementById('pity-5').innerText = config.hardPity5 - state.pityCounter5;
+            document.getElementById('pity-4').innerText = config.hardPity4 - state.pityCounter4;
+
+            const guaranteeEl = document.getElementById('guarantee-status');
+            if (state.isGuaranteed) {
+                guaranteeEl.innerText = "开启 (下次必中UP!)";
+                guaranteeEl.className = "guarantee-status on";
+            } else {
+                guaranteeEl.innerText = "关闭 (下次出金50%歪)";
+                guaranteeEl.className = "guarantee-status off";
+            }
+        }
+
+        // 渲染卡片结果到页面上
+        function renderCards(results) {
+            resultsContainer.innerHTML = ''; // 清空上次结果
+            results.forEach(item => {
+                const card = document.createElement('div');
+                // 根据稀有度添加不同的类名 (blue/purple/gold)
+                card.className = `card ${item.rarity}`;
+                card.innerHTML = `
+                    <div class="card-type">${item.isUp ? '✨UP!' : item.type}</div>
+                    <div class="card-name">${item.name}</div>
+                `;
+                resultsContainer.appendChild(card);
+            });
+        }
+
+
+        // --- 按钮事件监听 ---
+
+        // 单抽
+        btn1.addEventListener('click', () => {
+            const result = drawOne();
+            renderCards([result]); // 渲染一个卡片
+            updateDashboard();
+        });
+
+        // 十连抽
+        btn10.addEventListener('click', () => {
+            const results = [];
+            // 简单粗暴：循环调用10次单抽逻辑
+            for (let i = 0; i < 10; i++) {
+                results.push(drawOne());
+            }
+            renderCards(results); // 渲染十个卡片
+            updateDashboard();
+        });
+
+        // 初始化面板
+        updateDashboard();
+
+    </script>
+</body>
+
+</html>

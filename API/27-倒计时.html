@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Document</title>
+  <style>
+    .countdown {
+      width: 240px;
+      height: 305px;
+      text-align: center;
+      line-height: 1;
+      color: #fff;
+      background-color: brown;
+      /* background-size: 240px; */
+      /* float: left; */
+      overflow: hidden;
+    }
+
+    .countdown .next {
+      font-size: 16px;
+      margin: 25px 0 14px;
+    }
+
+    .countdown .title {
+      font-size: 33px;
+    }
+
+    .countdown .tips {
+      margin-top: 80px;
+      font-size: 23px;
+    }
+
+    .countdown small {
+      font-size: 17px;
+    }
+
+    .countdown .clock {
+      width: 142px;
+      margin: 18px auto 0;
+      overflow: hidden;
+    }
+
+    .countdown .clock span,
+    .countdown .clock i {
+      display: block;
+      text-align: center;
+      line-height: 34px;
+      font-size: 23px;
+      float: left;
+    }
+
+    .countdown .clock span {
+      width: 34px;
+      height: 34px;
+      border-radius: 2px;
+      background-color: #303430;
+    }
+
+    .countdown .clock i {
+      width: 20px;
+      font-style: normal;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="countdown">
+    <p class="next">今天是2222年2月22日</p>
+    <p class="title">下班倒计时</p>
+    <p class="clock">
+      <span id="hour">00</span>
+      <i>:</i>
+      <span id="minutes">25</span>
+      <i>:</i>
+      <span id="scond">20</span>
+    </p>
+    <p class="tips">18:30:00下课</p>
+  </div>
+  <script>
+    function getCountTime() {
+      //1.得到当前的时间戳
+      const now = +new Date()
+      //2.得到将来的时间戳
+      const future = +new Date('2027-6-1 00:00:00')
+      //3.得到时间差的秒数,注意这里要转化秒  数
+      const diff = (future - now) / 1000
+      //console.log(diff)
+      //4.计算小时 分钟 秒
+      let h = Math.floor(diff / 3600 % 24)
+      let m = Math.floor(diff / 60 % 60)
+      let s = Math.floor(diff % 60)
+      h = h < 10 ? '0' + h : h
+      m = m < 10 ? '0' + m : m
+      s = s < 10 ? '0' + s : s
+      console.log(h, m, s)
+      //拿到数字就写到盒子里面去，首先得到这个盒子,我是拿到盒子还是拿到里面的每一个id？yes
+      const hour = document.querySelector('#hour')
+      const minutes = document.querySelector('#minutes')
+      const seconds = document.querySelector('#scond')
+      //修改数字
+      hour.innerHTML = h
+      minutes.innerHTML = m
+      seconds.innerHTML = s
+
+    }
+    //一开始就调用，移除一秒空白期
+    getCountTime()
+    setInterval(getCountTime, 1000)//注意这里无需打括号
+  </script>
+</body>
+
+</html>
